@@ -1,0 +1,344 @@
+#include <LiquidCrystal.h>
+#include <Servo.h>
+#include "DHT.h"
+#include <Adafruit_Sensor.h>
+#include <SoftwareSerial.h>
+SoftwareSerial mySerial(22,23);
+#define DHTPIN 51
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+float t; // temperature in celcius
+float f; // temperature in fahrenheit
+float humi; // humidity
+Servo myservo;  // create servo object to control a servo
+int pos = 0;
+int relay=50;
+int alarm=52;
+int servo=7;
+int led=53;
+int mq135=A0;
+int mq2=A5;
+int flame=A2;
+int depth=A1;
+int ldr=A3;
+int trig=48;
+int echo=49;
+int m1p1=40;
+int m1p2=41;
+int m1p3=42;
+int m1p4=43;
+int m2p1=44;
+int m2p2=45;
+int m2p3=46;
+int m2p4=47;
+int ena=6;
+int enb=5;
+int enA=4;
+int enB=3;
+int c=0;
+int c1=0;
+int food=24;
+const int rs = 13, en = 12, d4 = 11, d5 = 10, d6 = 9, d7 = 8;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+void setup() {
+  dht.begin();
+   pinMode(relay,OUTPUT);
+   pinMode(alarm,OUTPUT);
+   pinMode(led,OUTPUT);
+   pinMode(mq135,INPUT);
+   pinMode(mq2,INPUT);
+   pinMode(flame,INPUT);
+   pinMode(depth,INPUT);
+   pinMode(ldr,INPUT);
+   pinMode(trig,OUTPUT); 
+   pinMode(echo,INPUT); 
+   pinMode(m1p1,OUTPUT); 
+   pinMode(m1p2,OUTPUT); 
+   pinMode(m1p3,OUTPUT); 
+   pinMode(m1p4,OUTPUT);
+   pinMode(m2p1,OUTPUT);
+   pinMode(m2p2,OUTPUT); 
+   pinMode(m2p3,OUTPUT);
+   pinMode(m2p4,OUTPUT); 
+   pinMode(ena,OUTPUT);
+   pinMode(enb,OUTPUT);    
+   pinMode(enA,OUTPUT);
+   pinMode(enB,OUTPUT); 
+   myservo.attach(servo);
+   lcd.begin(16,2);
+  Serial.begin(9600);
+  mySerial.begin(9600); 
+  mySerial.println("AT+CNMI=2,2,0,0,0"); 
+  delay(1000);
+  mySerial.println("AT+CMGF=1");   
+  delay(1000);  
+    
+}
+
+void loop() {
+//------------------------------------------------------------  TEMP------------------------------------------------
+  //digitalWrite(relay,HIGH);
+  //Teperature and Humidity
+  humi = dht.readHumidity();
+  // Read temperature as Celsius
+  t = dht.readTemperature();
+  // Read temperature as Fahrenheit
+  f = dht.readTemperature(true);
+    if (isnan(humi) || isnan(t) || isnan(f)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return false;
+  }
+  Serial.print("Humidity: "); 
+  Serial.print(humi);
+  Serial.println(" %\t");
+  Serial.print("Temperature: "); 
+  Serial.println(t);
+  Serial.print(" *C ");
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("temp");
+    lcd.setCursor(5,0);
+    lcd.print(t);
+    lcd.setCursor(8,0);
+    lcd.print("*c");
+    lcd.setCursor(0,1);
+    lcd.print("humi");
+    lcd.setCursor(5,1);
+    lcd.print(humi);
+    lcd.setCursor(8,1);
+    lcd.print("%");
+  delay(1000);
+  if(t>=28 && t<=32)
+  {
+    digitalWrite(m2p1,HIGH);
+    digitalWrite(m2p2,LOW);
+    analogWrite(ena,50);    
+  }
+    if(t<28)
+  {
+    digitalWrite(m2p1,LOW);
+    digitalWrite(m2p2,LOW);
+    analogWrite(ena,0); 
+  }
+      if(t>32)
+  {
+    digitalWrite(m2p1,HIGH);
+    digitalWrite(m2p2,LOW);
+    analogWrite(ena,100); 
+  }
+    if(humi>=40 && humi<=60)
+  {
+    digitalWrite(m2p1,HIGH);
+    digitalWrite(m2p2,LOW);
+    analogWrite(enb,100);    
+  }
+    if(humi<40)
+  {
+    digitalWrite(m2p3,LOW);
+    digitalWrite(m2p4,LOW);
+    analogWrite(enb,0); 
+  }
+   if(humi>60 && humi<=80)
+  {
+    digitalWrite(m2p3,HIGH);
+    digitalWrite(m2p4,LOW);
+    analogWrite(enb,120); 
+  }
+     if(humi>80)
+  {
+    digitalWrite(m2p3,HIGH);
+    digitalWrite(m2p4,LOW);
+    analogWrite(enb,180); 
+  }
+  //-------------------------------------------------Water tank ------------------------------------------------------------------------
+  digitalWrite(trig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+
+  int duration = pulseIn(echo, HIGH);
+  int distance = (duration*.0343)/2;
+  Serial.print("Distance: ");
+  Serial.println(distance);
+  if(distance=10)
+  {
+    digitalWrite(m1p1,LOW);
+    digitalWrite(m1p2,LOW);
+    analogWrite(enA,0);    
+  }
+    if(distance<=5)
+  {
+    digitalWrite(m1p1,LOW);
+    digitalWrite(m1p2,LOW);
+    analogWrite(enA,0);    
+  }
+
+  //-----------------------------------------------water tray----------------------------------------------------------------------------
+  
+  int depthdata =analogRead(depth);
+  Serial.print("water depth");
+  Serial.println(depthdata);
+  if(depthdata<=100)
+  {
+  digitalWrite(m1p3,LOW);
+  digitalWrite(m1p4,LOW);
+  analogWrite(enB,0);
+  }
+    if(depthdata>=200)
+  {
+  digitalWrite(m1p3,LOW);
+  digitalWrite(m1p4,LOW);
+  analogWrite(enB,0);
+  }
+  
+//------------------------------------------------------MQ135---------------------------------------------------------------------------
+
+int mq135data=analogRead(mq135);
+Serial.print("mq 135 :");
+Serial.println(mq135data);
+if(mq135data>=200)
+{
+  for (pos = 0; pos <=0; pos += 1) { // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(200); 
+  }
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("ALERT");
+    lcd.setCursor(0,1);
+    lcd.print("Harmful gas");
+     mySerial.println("AT+CMGS=\"+917288921227\"\r"); // Replace x with mobile number
+     delay(1000);
+     mySerial.print("Harmful gas detected");// The SMS text you want to send
+     delay(100);
+     mySerial.println((char)26);// ASCII code of CTRL+Z for saying the end of sms to  the module 
+      delay(1000);
+}
+
+if(mq135data<=200)
+{
+    lcd.clear();
+    lcd.setCursor(0,1);
+    lcd.println("No Harmful gas");
+    delay(1000);
+  for (pos = 130; pos <=130; pos += 1) { // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(300); 
+  }
+}
+
+//--------------------------------------------------------------------smoke sensor-------------------------------------------------------
+
+  int mq2data = analogRead(mq2);
+  Serial.print("mq2: ");
+  Serial.println(mq2data);
+  if(mq2data>=200)
+{   
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("ALERT");
+    lcd.setCursor(0,1);
+    lcd.print("Smoke detected");
+     mySerial.println("AT+CMGS=\"+917288921227\"\r"); // Replace x with mobile number
+     delay(1000);
+     mySerial.print("flammable gas detected");// The SMS text you want to send
+     delay(100);
+     mySerial.println((char)26);// ASCII code of CTRL+Z for saying the end of sms to  the module 
+      delay(1000);
+}
+  if(mq2data>=200) 
+  {
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.println("Smoke detected");
+    delay(1000);   
+  }  
+
+//--------------------------------------------------------------FIRE---------------------------------------------------------------------
+
+  int flamedata = analogRead(flame);
+  Serial.print("flame sensor value: ");
+  Serial.println(flamedata);
+  if(flamedata<=100)
+{
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("ALERT");
+    lcd.setCursor(0,1);
+    lcd.print("Fire detected");
+    digitalWrite(alarm,HIGH);
+     mySerial.println("AT+CMGS=\"+917288921227\"\r"); // Replace x with mobile number
+     delay(1000);
+     mySerial.print("flammable gas detected");// The SMS text you want to send
+     delay(100);
+     mySerial.println((char)26);// ASCII code of CTRL+Z for saying the end of sms to  the module 
+      delay(1000);
+}
+if(flamedata<=500)
+{
+digitalWrite(alarm,LOW);
+  lcd.setCursor(0,0);
+  lcd.print("No Fire detected");
+  delay(1000);  
+}
+
+//--------------------------------------------------LDR---------------------------------------------------------------------------
+
+  int ldrdata = analogRead(ldr);
+  Serial.print("ldr value: ");
+  Serial.println(ldrdata);
+  if(ldrdata<=200)
+{  
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("LOW Light");
+    lcd.setCursor(0,1);
+    lcd.print("Lights On");  
+    digitalWrite(led,HIGH);
+    delay(1000);
+}
+  if(ldrdata>=200)
+{
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("High Light");
+    lcd.setCursor(0,0);
+    lcd.print("Light Off");  
+    digitalWrite(led,LOW);
+}
+c=c+1;
+c1=c1+1;
+Serial.println(c1);
+Serial.println(c);
+if(c==100){
+digitalWrite(food,HIGH);
+delay(5000);
+c=0;
+}
+if(c1==100)
+{
+     mySerial.println("AT+CMGS=\"+917288921227\"\r"); // Replace x with mobile number
+     delay(1000);
+     mySerial.print("Temperature");// The SMS text you want to send
+     delay(100);
+     mySerial.print(t);// The SMS text you want to send
+     delay(100);
+     mySerial.println("*c");// The SMS text you want to send
+     delay(100);
+     mySerial.print("Humidity");// The SMS text you want to send
+     delay(100);
+     mySerial.print(humi);// The SMS text you want to send
+     delay(100);
+     mySerial.println("%");// The SMS text you want to send
+     delay(100);
+     mySerial.println((char)26);// ASCII code of CTRL+Z for saying the end of sms to  the module 
+     delay(1000);
+     c1=0;
+}
+}
+
+
